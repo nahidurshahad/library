@@ -17,4 +17,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsodium-dev
       - name: Compile
-        run: gcc main.c -std=c11 -Wall -Wextra -o library -lsodium
+        run: gcc main.c security.c data.c auth.c admin.c book.c dashboard.c login.c -std=c11 -Wall -Wextra -o library -lsodium
