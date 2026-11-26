@@ -33,6 +33,8 @@ struct Book books[100];
 int userCount = 0;
 int bookCount = 0;
 
+int nextUserId(void);
+
 int readPassword(const char prompt[], char password[], size_t size) {
     char showOption;
     int character;
