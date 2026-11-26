@@ -467,7 +467,20 @@ void createAdmin(void) {
 
     loadUsers();
     for (i = 0; i < userCount; i++) {
-        if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) found = 1;
+        if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) {
+            found = 1;
+            /* Invalidate the previously published default credential. */
+            if (verifyPassword(users[i].passwordHash, "Admin@123")) {
+                for (int j = 0; j < 16; j++)
+                    initialPassword[j] = alphabet[randombytes_uniform((uint32_t)(sizeof(alphabet) - 1))];
+                initialPassword[16] = '\0';
+                if (!hashPassword(initialPassword, hash)) return;
+                strcpy(users[i].passwordHash, hash);
+                printf("\nThe exposed default admin password was replaced. New one-time password: %s\n", initialPassword);
+                sodium_memzero(initialPassword, sizeof(initialPassword));
+                changed = 1;
+            }
+        }
         if (!isPasswordHash(users[i].passwordHash) &&
             hashPassword(users[i].passwordHash, hash)) {
             strcpy(users[i].passwordHash, hash);
