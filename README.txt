@@ -1,60 +1,42 @@
-# DIU Library Management System
+DIU LIBRARY MANAGEMENT SYSTEM
+=============================
 
-A beginner-friendly C library management project. The maintained implementation is **main.c only**. Do not compile the removed legacy modules together with it.
+PROJECT STRUCTURE
+-----------------
+main.c       - Program entry point and main menu
+library.h    - Shared structures, global declarations and function prototypes
+security.c   - Password input, password strength, Argon2id hashing and security questions
+data.c       - User CSV and book file loading/saving
+auth.c       - Registration, password recovery, Super Admin creation and user lookup
+login.c      - Login and role verification
+admin.c      - Admin user-list operation
+book.c       - Add, update, delete, view and search books
+dashboard.c  - Admin, librarian, student and teacher dashboards
 
-## Requirements
+BUILD
+-----
+All source files must be compiled together.
 
-- GCC or another C11-compatible compiler
-- libsodium (Argon2id password hashing)
+Linux:
+  sudo apt install gcc libsodium-dev
+  gcc main.c security.c data.c auth.c admin.c book.c dashboard.c login.c -std=c11 -Wall -Wextra -o library -lsodium
+  ./library
 
-Install libsodium:
+Windows (MSYS2 UCRT64):
+  pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-libsodium
+  gcc main.c security.c data.c auth.c admin.c book.c dashboard.c login.c -std=c11 -Wall -Wextra -o library.exe -lsodium
+  ./library.exe
 
-- Ubuntu/Debian: `sudo apt install libsodium-dev`
-- macOS: `brew install libsodium`
-- Windows (MSYS2): `pacman -S mingw-w64-x86_64-libsodium`
+DATA FILES
+----------
+users.csv and books.txt are created/used locally and are excluded from Git.
+Passwords and security answers are stored using Argon2id hashes.
 
-## Build
+ROLES
+-----
+Super Admin: created automatically on first run with a random one-time password.
+Librarian: manages books.
+Student: views and searches books.
+Teacher: views and searches books.
 
-Linux/macOS:
-
-```sh
-gcc main.c -std=c11 -Wall -Wextra -o library -lsodium
-```
-
-Windows (MSYS2 MinGW):
-
-```sh
-gcc main.c -std=c11 -Wall -Wextra -o library.exe -lsodium
-```
-
-## First run
-
-Run the program. On the first launch, it creates the Super Admin account:
-
-- Email: `admin@diu.edu.bd`
-- A random one-time password is generated and printed in the terminal.
-
-**Save that password immediately.** It is not stored in the source code or README. If it is lost, remove the local `users.csv` only if you are willing to reset all accounts, then run the program again.
-
-Login roles: Super Admin, Librarian, Student, Teacher.
-
-Registration roles: Librarian, Student, Teacher. Super Admin cannot self-register.
-
-## Password and account storage
-
-- Passwords are stored as Argon2id hashes with unique random salts using libsodium.
-- Password recovery answers are also Argon2id-hashed.
-- Existing local CSV records containing plaintext passwords or recovery answers are upgraded to hashes when the program starts.
-- User data is stored locally in `users.csv`; book data is stored in `books.txt`.
-- These data files are excluded from Git. Back them up privately.
-
-Security questions are suitable only for a student project, not as the sole recovery method for a production system. A production application should use verified email recovery, rate limits, and stronger account controls.
-
-## Password rules
-
-- At least 8 characters
-- At least one uppercase and one lowercase letter
-- At least one number
-- At least one special character
-
-Password input is masked by default. Choose `y` at the prompt to show it while typing.
+The initial Super Admin password is printed once in the terminal. Save it securely.
