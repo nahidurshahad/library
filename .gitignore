@@ -1,0 +1,11 @@
+# Local account and library data
+users.csv
+users.csv.tmp
+users.txt
+books.txt
+
+# Build output
+library
+library.exe
+*.o
+*.out
