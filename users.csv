@@ -1,0 +1,2 @@
+id,name,email,password,role,securityQuestionId,securityAnswer
+1,Admin,admin@diu.edu.bd,pbkdf2_sha256$600000$8f67180b88399165931cc690008ef04b$f327b2754abc3867b2104a23f64195cdcdde8e4d9d6473ba9e270e46c4a7fc8a,Admin,0,-

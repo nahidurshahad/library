@@ -1,42 +1,40 @@
-DIU LIBRARY MANAGEMENT SYSTEM
-=============================
+DIU Library Management System - Beginner Version
 
-PROJECT STRUCTURE
------------------
-main.c       - Program entry point and main menu
-library.h    - Shared structures, global declarations and function prototypes
-security.c   - Password input, password strength, Argon2id hashing and security questions
-data.c       - User CSV and book file loading/saving
-auth.c       - Registration, password recovery, Super Admin creation and user lookup
-login.c      - Login and role verification
-admin.c      - Admin user-list operation
-book.c       - Add, update, delete, view and search books
-dashboard.c  - Admin, librarian, student and teacher dashboards
+Source
+- main.c
 
-BUILD
------
-All source files must be compiled together.
+Compile
+Windows (MinGW): gcc main.c -std=c11 -o library.exe -lbcrypt
+Linux/macOS (OpenSSL): gcc main.c -std=c11 -o library -lcrypto
 
-Linux:
-  sudo apt install gcc libsodium-dev
-  gcc main.c security.c data.c auth.c admin.c book.c dashboard.c login.c -std=c11 -Wall -Wextra -o library -lsodium
-  ./library
+Run
+Windows: library.exe
+Linux/macOS: ./library
 
-Windows (MSYS2 UCRT64):
-  pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-libsodium
-  gcc main.c security.c data.c auth.c admin.c book.c dashboard.c login.c -std=c11 -Wall -Wextra -o library.exe -lsodium
-  ./library.exe
+Default admin
+Email: admin@diu.edu.bd
+Password: Admin@123
 
-DATA FILES
-----------
-users.csv and books.txt are created/used locally and are excluded from Git.
-Passwords and security answers are stored using Argon2id hashes.
+Password rules
+- At least 8 characters
+- At least one uppercase letter and one lowercase letter
+- At least one number
+- At least one special character (for example: !, @, or #)
+- Password input is masked by default. Choose y at the prompt to show it while typing.
 
-ROLES
------
-Super Admin: created automatically on first run with a random one-time password.
-Librarian: manages books.
-Student: views and searches books.
-Teacher: views and searches books.
+Password recovery
+- Choose one of the six security questions when creating or changing a password.
+- Existing accounts are asked to choose one after their next successful login.
+- The answer is case-insensitive and must be entered as one word (no spaces).
+- You must answer the selected question correctly before resetting a password.
 
-The initial Super Admin password is printed once in the terminal. Save it securely.
+Data files
+- users.csv
+- books.txt
+- Account data is stored as CSV in users.csv.
+
+Security note
+- Passwords are stored as salted PBKDF2-HMAC-SHA-256 hashes in users.csv, not encrypted.
+- Existing plaintext passwords are hashed and saved when the program starts.
+- Security answers remain plaintext in users.csv.
+- Security questions are not suitable as the only recovery method for production systems.
