@@ -17,7 +17,7 @@ struct User {
     char email[60];
     char passwordHash[crypto_pwhash_argon2id_STRBYTES];
     int securityQuestionId;
-    char securityAnswer[64];
+    char securityAnswerHash[crypto_pwhash_argon2id_STRBYTES];
 };
 
 struct Book {
@@ -191,7 +191,19 @@ void printSecurityQuestions(void) {
     }
 }
 
-int setSecurityQuestion(int *questionId, char answer[]) {
+int hashSecurityAnswer(const char answer[], char hash[]) {
+    char normalized[64];
+    size_t i, length = strlen(answer);
+    if (length == 0 || length >= sizeof(normalized)) return 0;
+    for (i = 0; i < length; i++)
+        normalized[i] = (char)tolower((unsigned char)answer[i]);
+    normalized[length] = '\0';
+    return crypto_pwhash_argon2id_str(hash, normalized, length,
+        crypto_pwhash_argon2id_OPSLIMIT_INTERACTIVE,
+        crypto_pwhash_argon2id_MEMLIMIT_INTERACTIVE) == 0;
+}
+
+int setSecurityQuestion(int *questionId, char answerHash[]) {
     char input[64];
     int choice;
     int i;
@@ -210,24 +222,24 @@ int setSecurityQuestion(int *questionId, char answer[]) {
         return 0;
     }
 
-    for (i = 0; input[i] != '\0'; i++) {
-        answer[i] = (char)tolower((unsigned char)input[i]);
+    if (!hashSecurityAnswer(input, answerHash)) {
+        printf("Could not protect security answer.\n");
+        return 0;
     }
-    answer[i] = '\0';
     *questionId = choice;
     return 1;
 }
 
-int securityAnswersMatch(const char stored[], const char provided[]) {
-    int i;
-
-    for (i = 0; stored[i] != '\0' && provided[i] != '\0'; i++) {
-        if (tolower((unsigned char)stored[i]) !=
-            tolower((unsigned char)provided[i])) {
-            return 0;
-        }
-    }
-    return stored[i] == '\0' && provided[i] == '\0';
+int securityAnswersMatch(const char storedHash[], const char provided[]) {
+    char normalized[64];
+    size_t i, length = strlen(provided);
+    if (length == 0 || length >= sizeof(normalized) ||
+        strncmp(storedHash, crypto_pwhash_argon2id_STRPREFIX,
+                strlen(crypto_pwhash_argon2id_STRPREFIX)) != 0) return 0;
+    for (i = 0; i < length; i++)
+        normalized[i] = (char)tolower((unsigned char)provided[i]);
+    normalized[length] = '\0';
+    return crypto_pwhash_argon2id_str_verify(storedHash, normalized, length) == 0;
 }
 
 static int parseCsvFields(const char *line, char fields[7][128]) {
@@ -313,7 +325,7 @@ void loadUsers(void) {
             strlen(fields[3]) >= sizeof(users[0].passwordHash) ||
             strlen(fields[4]) >= sizeof(users[0].role) ||
             (fieldCount == 7 &&
-             strlen(fields[6]) >= sizeof(users[0].securityAnswer))) {
+             strlen(fields[6]) >= sizeof(users[0].securityAnswerHash))) {
             continue;
         }
         id = strtol(fields[0], &end, 10);
@@ -335,9 +347,9 @@ void loadUsers(void) {
         strcpy(users[userCount].role, fields[4]);
         users[userCount].securityQuestionId = (int)questionId;
         if (fieldCount == 7 && strcmp(fields[6], "-") != 0) {
-            strcpy(users[userCount].securityAnswer, fields[6]);
+            strcpy(users[userCount].securityAnswerHash, fields[6]);
         } else {
-            users[userCount].securityAnswer[0] = '\0';
+            users[userCount].securityAnswerHash[0] = '\0';
         }
         userCount++;
     }
@@ -351,7 +363,7 @@ void saveUsers(void) {
         printf("Cannot create temporary users file.\n");
         return;
     }
-    if (fprintf(file, "id,name,email,passwordHash,role,securityQuestionId,securityAnswer\n") < 0) {
+    if (fprintf(file, "id,name,email,passwordHash,role,securityQuestionId,securityAnswerHash\n") < 0) {
         fclose(file);
         remove("users.csv.tmp");
         printf("Cannot write users file.\n");
@@ -364,8 +376,8 @@ void saveUsers(void) {
             !writeCsvField(file, users[i].passwordHash) || fputc(',', file) == EOF ||
             !writeCsvField(file, users[i].role) ||
             fprintf(file, ",%d,", users[i].securityQuestionId) < 0 ||
-            !writeCsvField(file, users[i].securityAnswer[0] != '\0' ?
-                           users[i].securityAnswer : "-") ||
+            !writeCsvField(file, users[i].securityAnswerHash[0] != '\0' ?
+                           users[i].securityAnswerHash : "-") ||
             fputc('\n', file) == EOF) {
             fclose(file);
             remove("users.csv.tmp");
@@ -447,6 +459,16 @@ void createAdmin(void) {
             hashPassword(users[i].passwordHash, hash)) {
             strcpy(users[i].passwordHash, hash);
             changed = 1;
+        }
+        if (users[i].securityAnswerHash[0] != '\0' &&
+            strcmp(users[i].securityAnswerHash, "-") != 0 &&
+            strncmp(users[i].securityAnswerHash, crypto_pwhash_argon2id_STRPREFIX,
+                    strlen(crypto_pwhash_argon2id_STRPREFIX)) != 0) {
+            char answerHash[crypto_pwhash_argon2id_STRBYTES];
+            if (hashSecurityAnswer(users[i].securityAnswerHash, answerHash)) {
+                strcpy(users[i].securityAnswerHash, answerHash);
+                changed = 1;
+            }
         }
     }
 
@@ -567,7 +589,7 @@ void registration(void) {
         return;
     }
     if (!setSecurityQuestion(&users[userCount].securityQuestionId,
-                             users[userCount].securityAnswer)) {
+                             users[userCount].securityAnswerHash)) {
         return;
     }
     users[userCount].id = nextUserId();
@@ -599,7 +621,7 @@ void forgotPassword(void) {
            getSecurityQuestion(users[index].securityQuestionId));
     printf("Answer (one word, no spaces): ");
     if (scanf("%63s", confirm) != 1 ||
-        !securityAnswersMatch(users[index].securityAnswer, confirm)) {
+        !securityAnswersMatch(users[index].securityAnswerHash, confirm)) {
         printf("Security answer does not match.\n");
         return;
     }
@@ -877,7 +899,7 @@ void login(void) {
     if (getSecurityQuestion(users[index].securityQuestionId) == NULL) {
         printf("Set a security question for password recovery.\n");
         if (!setSecurityQuestion(&users[index].securityQuestionId,
-                                 users[index].securityAnswer)) {
+                                 users[index].securityAnswerHash)) {
             return;
         }
         saveUsers();
