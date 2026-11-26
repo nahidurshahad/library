@@ -345,19 +345,18 @@ void loadUsers(void) {
 }
 
 void saveUsers(void) {
-    FILE *file = fopen("users.csv", "w");
+    FILE *file = fopen("users.csv.tmp", "w");
     int i;
-
     if (file == NULL) {
-        printf("Cannot open users.csv\n");
+        printf("Cannot create temporary users file.\n");
         return;
     }
     if (fprintf(file, "id,name,email,passwordHash,role,securityQuestionId,securityAnswer\n") < 0) {
-        printf("Cannot write users.csv\n");
         fclose(file);
+        remove("users.csv.tmp");
+        printf("Cannot write users file.\n");
         return;
     }
-
     for (i = 0; i < userCount; i++) {
         if (fprintf(file, "%d,", users[i].id) < 0 ||
             !writeCsvField(file, users[i].name) || fputc(',', file) == EOF ||
@@ -368,14 +367,23 @@ void saveUsers(void) {
             !writeCsvField(file, users[i].securityAnswer[0] != '\0' ?
                            users[i].securityAnswer : "-") ||
             fputc('\n', file) == EOF) {
-            printf("Cannot write users.csv\n");
             fclose(file);
+            remove("users.csv.tmp");
+            printf("Cannot write users file.\n");
             return;
         }
     }
-    fclose(file);
+    if (fflush(file) != 0) {
+        fclose(file);
+        remove("users.csv.tmp");
+        printf("Cannot finish writing users file.\n");
+        return;
+    }
+    if (fclose(file) != 0 || rename("users.csv.tmp", "users.csv") != 0) {
+        remove("users.csv.tmp");
+        printf("Cannot safely replace users.csv.\n");
+    }
 }
-
 void loadBooks(void) {
     FILE *file = fopen("books.txt", "r");
     int id;
@@ -389,8 +397,10 @@ void loadBooks(void) {
         return;
     }
 
-    while (fscanf(file, "%d %49s %49s %29s %d",
+    while (bookCount < 100 &&
+           fscanf(file, "%d %49s %49s %29s %d",
                   &id, title, author, category, &copies) == 5) {
+        if (id < 1 || copies < 0) continue;
         books[bookCount].id = id;
         strcpy(books[bookCount].title, title);
         strcpy(books[bookCount].author, author);
@@ -455,6 +465,13 @@ void createAdmin(void) {
     if (changed) {
         saveUsers();
     }
+}
+
+int nextUserId(void) {
+    int i, maximum = 0;
+    for (i = 0; i < userCount; i++)
+        if (users[i].id > maximum) maximum = users[i].id;
+    return maximum + 1;
 }
 
 int findUser(char email[]) {
@@ -553,7 +570,7 @@ void registration(void) {
                              users[userCount].securityAnswer)) {
         return;
     }
-    users[userCount].id = userCount + 1;
+    users[userCount].id = nextUserId();
     userCount++;
     saveUsers();
     printf("Registration successful.\n");
@@ -626,7 +643,7 @@ void addBook(void) {
         return;
     }
 
-    books[bookCount].id = bookCount + 1;
+    { int i, maximum = 0; for (i = 0; i < bookCount; i++) if (books[i].id > maximum) maximum = books[i].id; books[bookCount].id = maximum + 1; }
     printf("Enter title (no spaces): ");
     scanf("%49s", books[bookCount].title);
     printf("Enter author (no spaces): ");
