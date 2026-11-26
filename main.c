@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <sodium.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -334,7 +335,7 @@ void loadUsers(void) {
             continue;
         }
         id = strtol(fields[0], &end, 10);
-        if (*fields[0] == '\0' || *end != '\0' || id < 0 || id > 100) {
+        if (*fields[0] == '\0' || *end != '\0' || id < 1 || id > INT_MAX) {
             continue;
         }
         if (fieldCount == 7) {
