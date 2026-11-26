@@ -1,0 +1,20 @@
+name: Build C project
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
+      - name: Compile
+        run: gcc main.c -std=c11 -Wall -Wextra -o library -lsodium
