@@ -1014,7 +1014,8 @@ void login(void) {
         return;
     }
 
-    if (getSecurityQuestion(users[index].securityQuestionId) == NULL) {
+    if (role != 1 &&
+        getSecurityQuestion(users[index].securityQuestionId) == NULL) {
         printf("Set a security question for password recovery.\n");
         if (!setSecurityQuestion(&users[index].securityQuestionId,
                                  users[index].securityAnswer)) {
