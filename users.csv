@@ -1,2 +1,2 @@
-id,name,email,password,role,securityQuestionId,securityAnswer
-1,Admin,admin@diu.edu.bd,Admin@123,Admin,0,-
+id,name,email,passwordHash,role,securityQuestionId,securityAnswer
+1,Admin,admin@diu.edu.bd,"$argon2id$v=19$m=65536,t=2,p=1$D/KuroE6eotiYotBI1aa0g$KbPfQTRVvW86tC4UL3EbJJbPEz1gBVoGwL+gKyZvRWY",Admin,0,-

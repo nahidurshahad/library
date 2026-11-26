@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <sodium.h>
 #ifdef _WIN32
 #include <conio.h>
 #else
@@ -14,7 +15,7 @@ struct User {
     char role[20];
     char name[50];
     char email[60];
-    char password[64];
+    char passwordHash[crypto_pwhash_argon2id_STRBYTES];
     int securityQuestionId;
     char securityAnswer[64];
 };
@@ -140,6 +141,30 @@ int isStrongPassword(const char password[]) {
     }
 
     return hasUpper && hasLower && hasDigit && hasSpecial;
+}
+
+/* Returns 1 if the stored text is an Argon2id hash. */
+int isPasswordHash(const char stored[]) {
+    return strncmp(stored, crypto_pwhash_argon2id_STRPREFIX,
+                   strlen(crypto_pwhash_argon2id_STRPREFIX)) == 0;
+}
+
+/* Hashes a password with Argon2id. The salt is random and kept inside the hash. */
+int hashPassword(const char password[], char hash[]) {
+    if (crypto_pwhash_argon2id_str(hash, password, strlen(password),
+                                   crypto_pwhash_argon2id_OPSLIMIT_INTERACTIVE,
+                                   crypto_pwhash_argon2id_MEMLIMIT_INTERACTIVE) != 0) {
+        printf("Could not hash password (out of memory).\n");
+        return 0;
+    }
+    return 1;
+}
+
+/* Returns 1 if the password matches the stored Argon2id hash. */
+int verifyPassword(const char hash[], const char password[]) {
+    return isPasswordHash(hash) &&
+           crypto_pwhash_argon2id_str_verify(hash, password,
+                                             strlen(password)) == 0;
 }
 
 const char *getSecurityQuestion(int questionId) {
@@ -285,7 +310,7 @@ void loadUsers(void) {
         if ((fieldCount != 5 && fieldCount != 7) || userCount >= 100 ||
             strlen(fields[1]) >= sizeof(users[0].name) ||
             strlen(fields[2]) >= sizeof(users[0].email) ||
-            strlen(fields[3]) >= sizeof(users[0].password) ||
+            strlen(fields[3]) >= sizeof(users[0].passwordHash) ||
             strlen(fields[4]) >= sizeof(users[0].role) ||
             (fieldCount == 7 &&
              strlen(fields[6]) >= sizeof(users[0].securityAnswer))) {
@@ -306,7 +331,7 @@ void loadUsers(void) {
         users[userCount].id = (int)id;
         strcpy(users[userCount].name, fields[1]);
         strcpy(users[userCount].email, fields[2]);
-        strcpy(users[userCount].password, fields[3]);
+        strcpy(users[userCount].passwordHash, fields[3]);
         strcpy(users[userCount].role, fields[4]);
         users[userCount].securityQuestionId = (int)questionId;
         if (fieldCount == 7 && strcmp(fields[6], "-") != 0) {
@@ -327,7 +352,7 @@ void saveUsers(void) {
         printf("Cannot open users.csv\n");
         return;
     }
-    if (fprintf(file, "id,name,email,password,role,securityQuestionId,securityAnswer\n") < 0) {
+    if (fprintf(file, "id,name,email,passwordHash,role,securityQuestionId,securityAnswer\n") < 0) {
         printf("Cannot write users.csv\n");
         fclose(file);
         return;
@@ -337,7 +362,7 @@ void saveUsers(void) {
         if (fprintf(file, "%d,", users[i].id) < 0 ||
             !writeCsvField(file, users[i].name) || fputc(',', file) == EOF ||
             !writeCsvField(file, users[i].email) || fputc(',', file) == EOF ||
-            !writeCsvField(file, users[i].password) || fputc(',', file) == EOF ||
+            !writeCsvField(file, users[i].passwordHash) || fputc(',', file) == EOF ||
             !writeCsvField(file, users[i].role) ||
             fprintf(file, ",%d,", users[i].securityQuestionId) < 0 ||
             !writeCsvField(file, users[i].securityAnswer[0] != '\0' ?
@@ -397,25 +422,37 @@ void saveBooks(void) {
 }
 
 void createAdmin(void) {
+    char hash[crypto_pwhash_argon2id_STRBYTES];
     int i;
     int found = 0;
+    int changed = 0;
 
     loadUsers();
     for (i = 0; i < userCount; i++) {
         if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) {
             found = 1;
         }
+        /* Plaintext password from an older users.csv: replace it with a hash. */
+        if (!isPasswordHash(users[i].passwordHash) &&
+            hashPassword(users[i].passwordHash, hash)) {
+            strcpy(users[i].passwordHash, hash);
+            changed = 1;
+        }
     }
 
-    if (found == 0) {
+    if (found == 0 && userCount < 100 && hashPassword("Admin@123", hash)) {
         users[userCount].id = 1;
         strcpy(users[userCount].name, "Admin");
         strcpy(users[userCount].email, "admin@diu.edu.bd");
-        strcpy(users[userCount].password, "Admin@123");
+        strcpy(users[userCount].passwordHash, hash);
         strcpy(users[userCount].role, "Admin");
         users[userCount].securityQuestionId = 0;
         users[userCount].securityAnswer[0] = '\0';
         userCount++;
+        changed = 1;
+    }
+
+    if (changed) {
         saveUsers();
     }
 }
@@ -509,7 +546,9 @@ void registration(void) {
         return;
     }
 
-    strcpy(users[userCount].password, password);
+    if (!hashPassword(password, users[userCount].passwordHash)) {
+        return;
+    }
     if (!setSecurityQuestion(&users[userCount].securityQuestionId,
                              users[userCount].securityAnswer)) {
         return;
@@ -562,7 +601,9 @@ void forgotPassword(void) {
         printf("Passwords do not match.\n");
         return;
     }
-    strcpy(users[index].password, password);
+    if (!hashPassword(password, users[index].passwordHash)) {
+        return;
+    }
     saveUsers();
     printf("Password changed successfully.\n");
 }
@@ -811,7 +852,7 @@ void login(void) {
         printf("Role does not match.\n");
         return;
     }
-    if (strcmp(users[index].password, password) != 0) {
+    if (!verifyPassword(users[index].passwordHash, password)) {
         printf("Wrong password.\n");
         return;
     }
@@ -835,6 +876,10 @@ void login(void) {
 int main(void) {
     int choice;
 
+    if (sodium_init() < 0) {
+        printf("Could not start libsodium.\n");
+        return 1;
+    }
     createAdmin();
 
     do {

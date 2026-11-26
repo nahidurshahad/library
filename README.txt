@@ -3,8 +3,15 @@ DIU Library Management System - Beginner Version
 Source
 - main.c
 
+Requirement
+- libsodium (used for Argon2id password hashing)
+  Ubuntu/Debian: sudo apt install libsodium-dev
+  macOS: brew install libsodium
+  Windows (MSYS2): pacman -S mingw-w64-x86_64-libsodium
+
 Compile
-gcc main.c -std=c11 -o library
+gcc main.c -std=c11 -o library -lsodium
+(If gcc cannot find sodium.h: gcc main.c -std=c11 -o library $(pkg-config --cflags --libs libsodium))
 
 Run
 Windows: library.exe
@@ -33,5 +40,8 @@ Data files
 - Account data is stored as CSV in users.csv.
 
 Security note
-- This beginner project stores passwords and security answers in plaintext in users.csv.
+- Passwords are stored in users.csv as Argon2id hashes, not as plain text.
+- Each hash has its own random salt, so the same password gives a different hash every time.
+- An old users.csv with plaintext passwords is converted to hashes automatically when the program starts.
+- Security answers are still stored in plaintext in users.csv.
 - Security questions are not suitable as the only recovery method for production systems.
