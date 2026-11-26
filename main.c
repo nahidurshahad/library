@@ -445,16 +445,14 @@ void saveBooks(void) {
 
 void createAdmin(void) {
     char hash[crypto_pwhash_argon2id_STRBYTES];
-    int i;
-    int found = 0;
-    int changed = 0;
+    char initialPassword[17];
+    static const char alphabet[] =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    int i, found = 0, changed = 0;
 
     loadUsers();
     for (i = 0; i < userCount; i++) {
-        if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) {
-            found = 1;
-        }
-        /* Plaintext password from an older users.csv: replace it with a hash. */
+        if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) found = 1;
         if (!isPasswordHash(users[i].passwordHash) &&
             hashPassword(users[i].passwordHash, hash)) {
             strcpy(users[i].passwordHash, hash);
@@ -472,21 +470,25 @@ void createAdmin(void) {
         }
     }
 
-    if (found == 0 && userCount < 100 && hashPassword("Admin@123", hash)) {
-        users[userCount].id = 1;
-        strcpy(users[userCount].name, "Admin");
+    if (!found && userCount < 100) {
+        for (i = 0; i < 16; i++)
+            initialPassword[i] = alphabet[randombytes_uniform((uint32_t)(sizeof(alphabet) - 1))];
+        initialPassword[16] = '\0';
+        if (!hashPassword(initialPassword, hash)) return;
+        users[userCount].id = nextUserId();
+        strcpy(users[userCount].name, "Super Admin");
         strcpy(users[userCount].email, "admin@diu.edu.bd");
         strcpy(users[userCount].passwordHash, hash);
         strcpy(users[userCount].role, "Admin");
         users[userCount].securityQuestionId = 0;
-        users[userCount].securityAnswer[0] = '\0';
+        users[userCount].securityAnswerHash[0] = '\0';
         userCount++;
         changed = 1;
+        printf("\nSuper Admin created. Save this one-time password now: %s\n", initialPassword);
+        sodium_memzero(initialPassword, sizeof(initialPassword));
     }
 
-    if (changed) {
-        saveUsers();
-    }
+    if (changed) saveUsers();
 }
 
 int nextUserId(void) {
@@ -860,7 +862,7 @@ void login(void) {
     loadUsers();
     printf("\n===== LOGIN =====\n");
     printf("Select role:\n");
-    printf("1. Admin\n");
+    printf("1. Super Admin\n");
     printf("2. Librarian\n");
     printf("3. Student\n");
     printf("4. Teacher\n");
