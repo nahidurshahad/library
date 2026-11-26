@@ -1,47 +1,60 @@
-DIU Library Management System - Beginner Version
+# DIU Library Management System
 
-Source
-- main.c
+A beginner-friendly C library management project. The maintained implementation is **main.c only**. Do not compile the removed legacy modules together with it.
 
-Requirement
-- libsodium (used for Argon2id password hashing)
-  Ubuntu/Debian: sudo apt install libsodium-dev
-  macOS: brew install libsodium
-  Windows (MSYS2): pacman -S mingw-w64-x86_64-libsodium
+## Requirements
 
-Compile
-gcc main.c -std=c11 -o library -lsodium
-(If gcc cannot find sodium.h: gcc main.c -std=c11 -o library $(pkg-config --cflags --libs libsodium))
+- GCC or another C11-compatible compiler
+- libsodium (Argon2id password hashing)
 
-Run
-Windows: library.exe
-Linux/macOS: ./library
+Install libsodium:
 
-Default admin
-Email: admin@diu.edu.bd
-Password: Admin@123
+- Ubuntu/Debian: `sudo apt install libsodium-dev`
+- macOS: `brew install libsodium`
+- Windows (MSYS2): `pacman -S mingw-w64-x86_64-libsodium`
 
-Password rules
+## Build
+
+Linux/macOS:
+
+```sh
+gcc main.c -std=c11 -Wall -Wextra -o library -lsodium
+```
+
+Windows (MSYS2 MinGW):
+
+```sh
+gcc main.c -std=c11 -Wall -Wextra -o library.exe -lsodium
+```
+
+## First run
+
+Run the program. On the first launch, it creates the Super Admin account:
+
+- Email: `admin@diu.edu.bd`
+- A random one-time password is generated and printed in the terminal.
+
+**Save that password immediately.** It is not stored in the source code or README. If it is lost, remove the local `users.csv` only if you are willing to reset all accounts, then run the program again.
+
+Login roles: Super Admin, Librarian, Student, Teacher.
+
+Registration roles: Librarian, Student, Teacher. Super Admin cannot self-register.
+
+## Password and account storage
+
+- Passwords are stored as Argon2id hashes with unique random salts using libsodium.
+- Password recovery answers are also Argon2id-hashed.
+- Existing local CSV records containing plaintext passwords or recovery answers are upgraded to hashes when the program starts.
+- User data is stored locally in `users.csv`; book data is stored in `books.txt`.
+- These data files are excluded from Git. Back them up privately.
+
+Security questions are suitable only for a student project, not as the sole recovery method for a production system. A production application should use verified email recovery, rate limits, and stronger account controls.
+
+## Password rules
+
 - At least 8 characters
-- At least one uppercase letter and one lowercase letter
+- At least one uppercase and one lowercase letter
 - At least one number
-- At least one special character (for example: !, @, or #)
-- Password input is masked by default. Choose y at the prompt to show it while typing.
+- At least one special character
 
-Password recovery
-- Choose one of the six security questions when creating or changing a password.
-- Existing accounts are asked to choose one after their next successful login.
-- The answer is case-insensitive and must be entered as one word (no spaces).
-- You must answer the selected question correctly before resetting a password.
-
-Data files
-- users.csv
-- books.txt
-- Account data is stored as CSV in users.csv.
-
-Security note
-- Passwords are stored in users.csv as Argon2id hashes, not as plain text.
-- Each hash has its own random salt, so the same password gives a different hash every time.
-- An old users.csv with plaintext passwords is converted to hashes automatically when the program starts.
-- Security answers are still stored in plaintext in users.csv.
-- Security questions are not suitable as the only recovery method for production systems.
+Password input is masked by default. Choose `y` at the prompt to show it while typing.
