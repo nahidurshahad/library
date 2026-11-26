@@ -4,6 +4,9 @@
 #include <ctype.h>
 #include <sodium.h>
 #ifdef _WIN32
+#include <windows.h>
+#endif
+#ifdef _WIN32
 #include <conio.h>
 #else
 #include <termios.h>
@@ -393,7 +396,17 @@ void saveUsers(void) {
         printf("Cannot finish writing users file.\n");
         return;
     }
-    if (fclose(file) != 0 || rename("users.csv.tmp", "users.csv") != 0) {
+    if (fclose(file) != 0) {
+        remove("users.csv.tmp");
+        printf("Cannot close temporary users file.\n");
+        return;
+    }
+#ifdef _WIN32
+    if (!MoveFileExA("users.csv.tmp", "users.csv",
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+#else
+    if (rename("users.csv.tmp", "users.csv") != 0) {
+#endif
         remove("users.csv.tmp");
         printf("Cannot safely replace users.csv.\n");
     }
