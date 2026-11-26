@@ -471,7 +471,9 @@ void createAdmin(void) {
         if (strcmp(users[i].email, "admin@diu.edu.bd") == 0) {
             found = 1;
             /* Invalidate the previously published default credential. */
-            if ((!isPasswordHash(users[i].passwordHash) &&\n                 strcmp(users[i].passwordHash, "Admin@123") == 0) ||\n                verifyPassword(users[i].passwordHash, "Admin@123")) {
+            if ((!isPasswordHash(users[i].passwordHash) &&
+                 strcmp(users[i].passwordHash, "Admin@123") == 0) ||
+                verifyPassword(users[i].passwordHash, "Admin@123")) {
                 for (int j = 0; j < 16; j++)
                     initialPassword[j] = alphabet[randombytes_uniform((uint32_t)(sizeof(alphabet) - 1))];
                 initialPassword[16] = '\0';
